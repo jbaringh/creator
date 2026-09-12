@@ -39,11 +39,12 @@ describe('generatePojo', () => {
     expect(code).toContain('public static class Address');
     expect(code).toContain('private String street;');
     expect(code).toContain('private String city;');
-    // nested class also gets Lombok
+    // nested class gets @JsonPropertyOrder and Lombok
     const nestedIdx = code.indexOf('public static class Address');
-    const nestedBlock = code.slice(nestedIdx, nestedIdx + 400);
-    expect(nestedBlock).toContain('@Data');
-    expect(nestedBlock).toContain('@Builder');
+    const before = code.slice(Math.max(0, nestedIdx - 200), nestedIdx);
+    expect(before).toContain('@JsonPropertyOrder({"street", "city"})');
+    expect(before).toContain('@Data');
+    expect(before).toContain('@Builder');
   });
 
   it('handles arrays as List types', () => {

@@ -217,14 +217,17 @@ export function generatePojo(
 
   lines.push(...buildFieldBlock(fields, '    ', useLombok));
 
+  const nestedOrderKey = (fs: Field[]) => fs.map((f) => `"${f.name}"`).join(', ');
+
   for (const [nestedName, nestedFields] of nestedClasses) {
-    lines.push(`    public static class ${nestedName} {`);
+    lines.push(`    @JsonPropertyOrder({${nestedOrderKey(nestedFields)}})`);
     if (useLombok) {
-      lines.push('        @Data');
-      lines.push('        @NoArgsConstructor');
-      lines.push('        @AllArgsConstructor');
-      lines.push('        @Builder');
+      lines.push('    @Data');
+      lines.push('    @NoArgsConstructor');
+      lines.push('    @AllArgsConstructor');
+      lines.push('    @Builder');
     }
+    lines.push(`    public static class ${nestedName} {`);
     lines.push('');
     lines.push(...buildFieldBlock(nestedFields, '        ', useLombok));
     lines.push('    }');
