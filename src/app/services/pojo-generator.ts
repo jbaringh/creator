@@ -1,0 +1,165 @@
+export interface PojoOptions {
+  /** When true, fields whose sample value is null get @JsonIgnore. */
+  ignoreNulls?: boolean;
+}
+
+interface Field {
+  name: string;
+  type: string;
+  annotations: string[];
+  isDate: boolean;
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function isIsoDate(value: unknown): boolean {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value);
+}
+
+function inferType(value: unknown, key: string): string {
+  if (value === null || value === undefined) return 'Object';
+  if (typeof value === 'string') return 'String';
+  if (typeof value === 'number') {
+    if (Number.isInteger(value)) {
+      if (Math.abs(value) > Number.MAX_SAFE_INTEGER) return 'long';
+      return 'int';
+    }
+    return 'double';
+  }
+  if (typeof value === 'boolean') return 'boolean';
+  if (Array.isArray(value)) {
+    if (value.length === 0) return 'List<Object>';
+    return `List<${inferType(value[0], key)}>`;
+  }
+  if (typeof value === 'object') {
+    return capitalize(key);
+  }
+  return 'Object';
+}
+
+function makeField(
+  key: string,
+  value: unknown,
+  options: PojoOptions,
+): Field {
+  const annotations: string[] = [`@JsonProperty("${key}")`];
+
+  if (value === null && options.ignoreNulls) {
+    annotations.push('@JsonIgnore');
+  }
+
+  const isDate = isIsoDate(value);
+  if (isDate) {
+    annotations.push(
+      '@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd\'T\'HH:mm:ss.SSSXXX")',
+    );
+  }
+
+  return {
+    name: key,
+    type: inferType(value, key),
+    annotations,
+    isDate,
+  };
+}
+
+function buildFieldBlock(
+  fields: Field[],
+  indent: string,
+): string[] {
+  const lines: string[] = [];
+
+  for (const f of fields) {
+    for (const ann of f.annotations) {
+      lines.push(`${indent}${ann}`);
+    }
+    lines.push(`${indent}private ${f.type} ${f.name};`);
+    lines.push('');
+  }
+
+  for (const f of fields) {
+    const cap = f.name.charAt(0).toUpperCase() + f.name.slice(1);
+    lines.push(`${indent}public ${f.type} get${cap}() {`);
+    lines.push(`${indent}    return ${f.name};`);
+    lines.push(`${indent}}`);
+    lines.push('');
+    lines.push(`${indent}public void set${cap}(${f.type} ${f.name}) {`);
+    lines.push(`${indent}    this.${f.name} = ${f.name};`);
+    lines.push(`${indent}}`);
+    lines.push('');
+  }
+
+  return lines;
+}
+
+export function generatePojo(
+  input: Record<string, unknown> | string,
+  className: string,
+  options: PojoOptions = {},
+): string {
+  let obj: Record<string, unknown>;
+  if (typeof input === 'string') {
+    try {
+      obj = JSON.parse(input) as Record<string, unknown>;
+    } catch {
+      throw new Error('Invalid JSON input');
+    }
+  } else {
+    obj = input;
+  }
+
+  const fields: Field[] = [];
+  const nestedClasses: Map<string, Field[]> = new Map();
+
+  for (const [key, value] of Object.entries(obj)) {
+    const isNested =
+      typeof value === 'object' && value !== null && !Array.isArray(value);
+
+    if (isNested) {
+      const nestedName = capitalize(key);
+      const nestedFields = Object.entries(value as Record<string, unknown>).map(
+        ([nk, nv]) => makeField(nk, nv, options),
+      );
+      nestedClasses.set(nestedName, nestedFields);
+    }
+
+    fields.push(makeField(key, value, options));
+  }
+
+  const imports = new Set<string>();
+  imports.add('com.fasterxml.jackson.annotation.JsonProperty');
+  imports.add('com.fasterxml.jackson.annotation.JsonIgnore');
+  imports.add('com.fasterxml.jackson.annotation.JsonPropertyOrder');
+
+  if (fields.some((f) => f.type.startsWith('List<'))) {
+    imports.add('java.util.List');
+  }
+  if (fields.some((f) => f.isDate)) {
+    imports.add('com.fasterxml.jackson.annotation.JsonFormat');
+  }
+
+  const importLines = [...imports].sort().map((i) => `import ${i};`).join('\n');
+
+  const orderKey = fields.map((f) => `"${f.name}"`).join(', ');
+
+  const lines: string[] = [];
+  lines.push(`@JsonPropertyOrder({${orderKey}})`);
+  lines.push(`public class ${className} {`);
+  lines.push('');
+
+  lines.push(...buildFieldBlock(fields, '    '));
+
+  for (const [nestedName, nestedFields] of nestedClasses) {
+    lines.push(`    public static class ${nestedName} {`);
+    lines.push('');
+    lines.push(...buildFieldBlock(nestedFields, '        '));
+    lines.push('    }');
+    lines.push('');
+  }
+
+  lines.push('}');
+
+  return `${importLines}\n\n${lines.join('\n')}`;
+}
