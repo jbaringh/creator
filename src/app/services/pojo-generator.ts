@@ -1,6 +1,8 @@
 export interface PojoOptions {
   /** When true, fields whose sample value is null get @JsonIgnore. */
   ignoreNulls?: boolean;
+  /** When true (default), use Lombok annotations instead of hand-written getters/setters. */
+  useLombok?: boolean;
 }
 
 interface Field {
@@ -78,6 +80,7 @@ function makeField(
 function buildFieldBlock(
   fields: Field[],
   indent: string,
+  useLombok: boolean,
 ): string[] {
   const lines: string[] = [];
 
@@ -89,16 +92,18 @@ function buildFieldBlock(
     lines.push('');
   }
 
-  for (const f of fields) {
-    const cap = f.name.charAt(0).toUpperCase() + f.name.slice(1);
-    lines.push(`${indent}public ${f.type} get${cap}() {`);
-    lines.push(`${indent}    return ${f.name};`);
-    lines.push(`${indent}}`);
-    lines.push('');
-    lines.push(`${indent}public void set${cap}(${f.type} ${f.name}) {`);
-    lines.push(`${indent}    this.${f.name} = ${f.name};`);
-    lines.push(`${indent}}`);
-    lines.push('');
+  if (!useLombok) {
+    for (const f of fields) {
+      const cap = f.name.charAt(0).toUpperCase() + f.name.slice(1);
+      lines.push(`${indent}public ${f.type} get${cap}() {`);
+      lines.push(`${indent}    return ${f.name};`);
+      lines.push(`${indent}}`);
+      lines.push('');
+      lines.push(`${indent}public void set${cap}(${f.type} ${f.name}) {`);
+      lines.push(`${indent}    this.${f.name} = ${f.name};`);
+      lines.push(`${indent}}`);
+      lines.push('');
+    }
   }
 
   return lines;
@@ -119,6 +124,8 @@ export function generatePojo(
   } else {
     obj = input;
   }
+
+  const useLombok = options.useLombok ?? true;
 
   const fields: Field[] = [];
   const nestedClasses: Map<string, Field[]> = new Map();
@@ -179,6 +186,13 @@ export function generatePojo(
   imports.add('com.fasterxml.jackson.annotation.JsonIgnore');
   imports.add('com.fasterxml.jackson.annotation.JsonPropertyOrder');
 
+  if (useLombok) {
+    imports.add('lombok.AllArgsConstructor');
+    imports.add('lombok.Builder');
+    imports.add('lombok.Data');
+    imports.add('lombok.NoArgsConstructor');
+  }
+
   if (fields.some((f) => f.type.startsWith('List<'))) {
     imports.add('java.util.List');
   }
@@ -192,15 +206,27 @@ export function generatePojo(
 
   const lines: string[] = [];
   lines.push(`@JsonPropertyOrder({${orderKey}})`);
+  if (useLombok) {
+    lines.push('@Data');
+    lines.push('@NoArgsConstructor');
+    lines.push('@AllArgsConstructor');
+    lines.push('@Builder');
+  }
   lines.push(`public class ${className} {`);
   lines.push('');
 
-  lines.push(...buildFieldBlock(fields, '    '));
+  lines.push(...buildFieldBlock(fields, '    ', useLombok));
 
   for (const [nestedName, nestedFields] of nestedClasses) {
     lines.push(`    public static class ${nestedName} {`);
+    if (useLombok) {
+      lines.push('        @Data');
+      lines.push('        @NoArgsConstructor');
+      lines.push('        @AllArgsConstructor');
+      lines.push('        @Builder');
+    }
     lines.push('');
-    lines.push(...buildFieldBlock(nestedFields, '        '));
+    lines.push(...buildFieldBlock(nestedFields, '        ', useLombok));
     lines.push('    }');
     lines.push('');
   }

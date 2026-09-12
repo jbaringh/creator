@@ -1,7 +1,7 @@
 import { generatePojo } from './pojo-generator';
 
 describe('generatePojo', () => {
-  it('generates a Java class with @JsonProperty annotations', () => {
+  it('generates a Java class with @JsonProperty annotations and Lombok by default', () => {
     const json = { userId: 42, username: 'alice', isActive: true };
     const code = generatePojo(json, 'User');
     expect(code).toContain('public class User');
@@ -10,11 +10,28 @@ describe('generatePojo', () => {
     expect(code).toContain('private String username;');
     expect(code).toContain('private boolean isActive;');
     expect(code).toContain('@JsonPropertyOrder');
-    expect(code).toContain('public int getUserId()');
-    expect(code).toContain('public void setUserId(int userId)');
+    expect(code).toContain('@Data');
+    expect(code).toContain('@NoArgsConstructor');
+    expect(code).toContain('@AllArgsConstructor');
+    expect(code).toContain('@Builder');
+    expect(code).toContain('import lombok.Data;');
+    expect(code).not.toContain('public int getUserId()');
   });
 
-  it('handles nested objects by generating inner classes', () => {
+  it('generates explicit getters/setters when useLombok is false', () => {
+    const json = { userId: 42, username: 'alice', isActive: true };
+    const code = generatePojo(json, 'User', { useLombok: false });
+    expect(code).toContain('public class User');
+    expect(code).toContain('@JsonProperty("userId")');
+    expect(code).toContain('private int userId;');
+    expect(code).toContain('@JsonPropertyOrder');
+    expect(code).toContain('public int getUserId()');
+    expect(code).toContain('public void setUserId(int userId)');
+    expect(code).not.toContain('@Data');
+    expect(code).not.toContain('import lombok.');
+  });
+
+  it('handles nested objects by generating inner classes with Lombok', () => {
     const json = { id: 1, address: { street: 'Main', city: 'Springfield' } };
     const code = generatePojo(json, 'Order');
     expect(code).toContain('public class Order');
@@ -22,6 +39,11 @@ describe('generatePojo', () => {
     expect(code).toContain('public static class Address');
     expect(code).toContain('private String street;');
     expect(code).toContain('private String city;');
+    // nested class also gets Lombok
+    const nestedIdx = code.indexOf('public static class Address');
+    const nestedBlock = code.slice(nestedIdx, nestedIdx + 400);
+    expect(nestedBlock).toContain('@Data');
+    expect(nestedBlock).toContain('@Builder');
   });
 
   it('handles arrays as List types', () => {
@@ -54,7 +76,7 @@ describe('generatePojo', () => {
     expect(code).toContain('private String createdAt;');
   });
 
-  it('adds @JsonIgnore for null fields when includeNulls is false', () => {
+  it('adds @JsonIgnore for null fields when includeNulls is true', () => {
     const json = { id: 1, optional: null };
     const code = generatePojo(json, 'Thing', { ignoreNulls: true });
     expect(code).toContain('@JsonIgnore');

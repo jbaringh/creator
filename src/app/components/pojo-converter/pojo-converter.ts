@@ -30,6 +30,16 @@ import { generatePojo } from '../../services/pojo-generator';
                   />
                   @JsonIgnore nulls
                 </label>
+                <label class="form-check-label small mb-0" for="useLombok">
+                  <input
+                    id="useLombok"
+                    class="form-check-input"
+                    type="checkbox"
+                    [checked]="useLombok()"
+                    (change)="useLombok.set(!useLombok())"
+                  />
+                  Lombok
+                </label>
                 <button
                   class="btn btn-primary btn-sm"
                   (click)="generate()"
@@ -83,6 +93,7 @@ export class PojoConverter {
   protected readonly generatedCode = signal('');
   protected readonly error = signal('');
   protected readonly ignoreNulls = signal(false);
+  protected readonly useLombok = signal(true);
   protected readonly className = signal('MyClass');
 
   generate(): void {
@@ -90,6 +101,7 @@ export class PojoConverter {
     try {
       const code = generatePojo(this.jsonInput(), this.className(), {
         ignoreNulls: this.ignoreNulls(),
+        useLombok: this.useLombok(),
       });
       this.generatedCode.set(code);
     } catch (e) {
