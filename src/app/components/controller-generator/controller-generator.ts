@@ -4,6 +4,7 @@ import {
   EndpointSpec, HttpMethod, ParamLocation,
   generateController,
 } from '../../services/controller-generator';
+import { CodeMirrorEditor, EditorLanguage } from '../code-editor/code-editor';
 
 interface ParamRow {
   name: string;
@@ -26,7 +27,7 @@ const HTTP_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HE
 
 @Component({
   selector: 'app-controller-generator',
-  imports: [FormsModule],
+  imports: [FormsModule, CodeMirrorEditor],
   template: `
     <div class="container-fluid py-4">
       <div class="row g-4">
@@ -152,9 +153,11 @@ const HTTP_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HE
               <button class="btn btn-outline-secondary btn-sm" (click)="copyCode()" [disabled]="!generatedCode()">Copy</button>
             </div>
             <div class="card-body d-flex">
-              <pre class="mb-0 bg-dark text-light p-3 rounded overflow-auto w-100"
-                   style="max-height: calc(100vh - 200px);">
-{{ generatedCode() || '// Click Generate to see the controller here' }}</pre>
+              <app-code-editor
+                [code]="generatedCode() || '// Click Generate to see the controller here'"
+                [language]="'java'"
+                [readOnly]="true"
+              ></app-code-editor>
             </div>
           </div>
         </div>

@@ -1,10 +1,11 @@
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { generatePojo } from '../../services/pojo-generator';
+import { CodeMirrorEditor, EditorLanguage } from '../code-editor/code-editor';
 
 @Component({
   selector: 'app-pojo-converter',
-  imports: [FormsModule],
+  imports: [FormsModule, CodeMirrorEditor],
   template: `
     <div class="container-fluid py-4">
       <div class="row g-4">
@@ -50,12 +51,12 @@ import { generatePojo } from '../../services/pojo-generator';
               </div>
             </div>
             <div class="card-body d-flex flex-column">
-              <textarea
-                class="form-control font-monospace"
-                rows="20"
-                [(ngModel)]="jsonInput"
-                placeholder='Paste your JSON object here…&#10;&#10;{ "id": 1, "name": "Alice" }'
-              ></textarea>
+              <app-code-editor
+                [code]="jsonInput()"
+                (codeChange)="jsonInput.set($event)"
+                [language]="'json'"
+                [readOnly]="false"
+              ></app-code-editor>
               @if (error(); ) {
                 <div class="alert alert-danger mt-3 mb-0">{{ error() }}</div>
               }
@@ -76,10 +77,11 @@ import { generatePojo } from '../../services/pojo-generator';
               </button>
             </div>
             <div class="card-body d-flex">
-              <pre
-                class="mb-0 bg-dark text-light p-3 rounded overflow-auto w-100"
-                style="max-height: calc(100vh - 200px);"
-              >{{ generatedCode() || '// Click Generate to see the POJO here' }}</pre>
+              <app-code-editor
+                [code]="generatedCode() || '// Click Generate to see the POJO here'"
+                [language]="'java'"
+                [readOnly]="true"
+              ></app-code-editor>
             </div>
           </div>
         </div>
