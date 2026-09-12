@@ -1,12 +1,10 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component } from '@angular/core';
+import { PojoConverter } from './components/pojo-converter/pojo-converter';
 
 @Component({
-  imports: [RouterOutlet],
   selector: 'app-root',
-  styleUrl: './app.css',
-  templateUrl: './app.html',
+  imports: [PojoConverter],
+  template: `<app-pojo-converter />`,
+  styles: [],
 })
-export class App {
-  protected readonly title = signal('pojo3');
-}
+export class App {}
