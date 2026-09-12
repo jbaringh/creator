@@ -183,8 +183,11 @@ export function generatePojo(
 
   const imports = new Set<string>();
   imports.add('com.fasterxml.jackson.annotation.JsonProperty');
-  imports.add('com.fasterxml.jackson.annotation.JsonIgnore');
   imports.add('com.fasterxml.jackson.annotation.JsonPropertyOrder');
+
+  if (fields.some((f) => f.annotations.some((a) => a.includes('@JsonIgnore')))) {
+    imports.add('com.fasterxml.jackson.annotation.JsonIgnore');
+  }
 
   if (useLombok) {
     imports.add('lombok.AllArgsConstructor');
