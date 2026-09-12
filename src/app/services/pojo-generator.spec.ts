@@ -31,6 +31,15 @@ describe('generatePojo', () => {
     expect(code).toContain('import java.util.List;');
   });
 
+  it('handles arrays of objects by generating inner classes', () => {
+    const json = { items: [{ item1: 'bob' }, { item2: 'Betty' }] };
+    const code = generatePojo(json, 'MyClass');
+    expect(code).toContain('private List<Items> items;');
+    expect(code).toContain('public static class Items');
+    expect(code).toContain('private String item1;');
+    expect(code).toContain('private String item2;');
+  });
+
   it('maps fractional numbers to double', () => {
     const json = { id: 1, price: 3.14, ratio: 0.5 };
     const code = generatePojo(json, 'Product');

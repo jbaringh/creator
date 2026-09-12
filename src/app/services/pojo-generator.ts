@@ -18,7 +18,7 @@ function isIsoDate(value: unknown): boolean {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value);
 }
 
-function inferType(value: unknown, key: string): string {
+function inferType(value: unknown, key: string, parentClassName: string): string {
   if (value === null || value === undefined) return 'Object';
   if (typeof value === 'string') return 'String';
   if (typeof value === 'number') {
@@ -31,18 +31,28 @@ function inferType(value: unknown, key: string): string {
   if (typeof value === 'boolean') return 'boolean';
   if (Array.isArray(value)) {
     if (value.length === 0) return 'List<Object>';
-    return `List<${inferType(value[0], key)}>`;
+    return `List<${inferType(value[0], key, parentClassName)}>`;
   }
   if (typeof value === 'object') {
-    return capitalize(key);
+    return nestedClassName(key, parentClassName);
   }
   return 'Object';
+}
+
+/**
+ * If a nested object's capitalised key would collide with the parent class
+ * name (e.g. key "order" inside class "Order"), return a disambiguated name.
+ */
+function nestedClassName(key: string, parentClassName: string): string {
+  const base = capitalize(key);
+  return base === parentClassName ? `${base}Dto` : base;
 }
 
 function makeField(
   key: string,
   value: unknown,
   options: PojoOptions,
+  parentClassName: string,
 ): Field {
   const annotations: string[] = [`@JsonProperty("${key}")`];
 
@@ -59,7 +69,7 @@ function makeField(
 
   return {
     name: key,
-    type: inferType(value, key),
+    type: inferType(value, key, parentClassName),
     annotations,
     isDate,
   };
@@ -113,19 +123,55 @@ export function generatePojo(
   const fields: Field[] = [];
   const nestedClasses: Map<string, Field[]> = new Map();
 
-  for (const [key, value] of Object.entries(obj)) {
-    const isNested =
-      typeof value === 'object' && value !== null && !Array.isArray(value);
+  /** Recursively register a nested object's fields into nestedClasses. */
+  function registerNested(value: Record<string, unknown>, name: string): void {
+    const nestedFields: Field[] = [];
+    for (const [nk, nv] of Object.entries(value)) {
+      if (typeof nv === 'object' && nv !== null && !Array.isArray(nv)) {
+        const childName = nestedClassName(nk, name);
+        registerNested(nv as Record<string, unknown>, childName);
+      } else if (Array.isArray(nv) && nv.length > 0) {
+        const elemName = nestedClassName(nk, name);
+        // Merge fields from all elements, then register the merged shape
+        const objEls = nv.filter(
+          (el): el is Record<string, unknown> =>
+            typeof el === 'object' && el !== null,
+        );
+        if (objEls.length > 0) {
+          const merged: Record<string, unknown> = {};
+          for (const el of objEls) {
+            for (const [k, v] of Object.entries(el)) {
+              if (!(k in merged)) merged[k] = v;
+            }
+          }
+          registerNested(merged, elemName);
+        }
+      }
+      nestedFields.push(makeField(nk, nv, options, name));
+    }
+    nestedClasses.set(name, nestedFields);
+  }
 
-    if (isNested) {
-      const nestedName = capitalize(key);
-      const nestedFields = Object.entries(value as Record<string, unknown>).map(
-        ([nk, nv]) => makeField(nk, nv, options),
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      registerNested(value as Record<string, unknown>, nestedClassName(key, className));
+    } else if (Array.isArray(value) && value.length > 0) {
+      const objEls = value.filter(
+        (el): el is Record<string, unknown> =>
+          typeof el === 'object' && el !== null,
       );
-      nestedClasses.set(nestedName, nestedFields);
+      if (objEls.length > 0) {
+        const merged: Record<string, unknown> = {};
+        for (const el of objEls) {
+          for (const [k, v] of Object.entries(el)) {
+            if (!(k in merged)) merged[k] = v;
+          }
+        }
+        registerNested(merged, nestedClassName(key, className));
+      }
     }
 
-    fields.push(makeField(key, value, options));
+    fields.push(makeField(key, value, options, className));
   }
 
   const imports = new Set<string>();
