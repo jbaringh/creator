@@ -1,5 +1,5 @@
 export interface PojoOptions {
-  /** When true, fields whose sample value is null get @JsonIgnore. */
+  /** When true, add @JsonInclude(NON_NULL) at class level instead of per-field @JsonIgnore. */
   ignoreNulls?: boolean;
   /** When true (default), use Lombok annotations instead of hand-written getters/setters. */
   useLombok?: boolean;
@@ -53,14 +53,10 @@ function nestedClassName(key: string, parentClassName: string): string {
 function makeField(
   key: string,
   value: unknown,
-  options: PojoOptions,
+  _options: PojoOptions,
   parentClassName: string,
 ): Field {
   const annotations: string[] = [`@JsonProperty("${key}")`];
-
-  if (value === null && options.ignoreNulls) {
-    annotations.push('@JsonIgnore');
-  }
 
   const isDate = isIsoDate(value);
   if (isDate) {
@@ -185,8 +181,8 @@ export function generatePojo(
   imports.add('com.fasterxml.jackson.annotation.JsonProperty');
   imports.add('com.fasterxml.jackson.annotation.JsonPropertyOrder');
 
-  if (fields.some((f) => f.annotations.some((a) => a.includes('@JsonIgnore')))) {
-    imports.add('com.fasterxml.jackson.annotation.JsonIgnore');
+  if (options.ignoreNulls) {
+    imports.add('com.fasterxml.jackson.annotation.JsonInclude');
   }
 
   if (useLombok) {
@@ -209,6 +205,9 @@ export function generatePojo(
 
   const lines: string[] = [];
   lines.push(`@JsonPropertyOrder({${orderKey}})`);
+  if (options.ignoreNulls) {
+    lines.push('@JsonInclude(JsonInclude.Include.NON_NULL)');
+  }
   if (useLombok) {
     lines.push('@Data');
     lines.push('@NoArgsConstructor');
@@ -224,6 +223,9 @@ export function generatePojo(
 
   for (const [nestedName, nestedFields] of nestedClasses) {
     lines.push(`    @JsonPropertyOrder({${nestedOrderKey(nestedFields)}})`);
+    if (options.ignoreNulls) {
+      lines.push('    @JsonInclude(JsonInclude.Include.NON_NULL)');
+    }
     if (useLombok) {
       lines.push('    @Data');
       lines.push('    @NoArgsConstructor');

@@ -28,7 +28,7 @@ import { generatePojo } from '../../services/pojo-generator';
                     [checked]="ignoreNulls()"
                     (change)="ignoreNulls.set(!ignoreNulls())"
                   />
-                  @JsonIgnore nulls
+                  <code>@JsonInclude(NON_NULL)</code>
                 </label>
                 <label class="form-check-label small mb-0" for="useLombok">
                   <input

@@ -77,11 +77,24 @@ describe('generatePojo', () => {
     expect(code).toContain('private String createdAt;');
   });
 
-  it('adds @JsonIgnore for null fields when includeNulls is true', () => {
+  it('adds @JsonInclude(NON_NULL) at class level when ignoreNulls is true', () => {
     const json = { id: 1, optional: null };
     const code = generatePojo(json, 'Thing', { ignoreNulls: true });
-    expect(code).toContain('@JsonIgnore');
+    expect(code).toContain('@JsonInclude(JsonInclude.Include.NON_NULL)');
+    expect(code).toContain('import com.fasterxml.jackson.annotation.JsonInclude;');
     expect(code).toContain('private Object optional;');
+    // no per-field @JsonIgnore
+    expect(code).not.toContain('@JsonIgnore');
+  });
+
+  it('adds @JsonInclude to nested classes when ignoreNulls is true', () => {
+    const json = { id: 1, nested: { a: null, b: 2 } };
+    const code = generatePojo(json, 'Thing', { ignoreNulls: true });
+    expect(code).toContain('@JsonInclude(JsonInclude.Include.NON_NULL)');
+    // nested class also gets it
+    const nestedIdx = code.indexOf('public static class Nested');
+    const before = code.slice(Math.max(0, nestedIdx - 200), nestedIdx);
+    expect(before).toContain('@JsonInclude(JsonInclude.Include.NON_NULL)');
   });
 
   it('throws on invalid JSON', () => {
