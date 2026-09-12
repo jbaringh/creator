@@ -77,24 +77,37 @@ describe('generatePojo', () => {
     expect(code).toContain('private String createdAt;');
   });
 
-  it('adds @JsonInclude(NON_NULL) at class level when ignoreNulls is true', () => {
+  it('adds @JsonInclude(NON_NULL) at class level when includeMode is NON_NULL', () => {
     const json = { id: 1, optional: null };
-    const code = generatePojo(json, 'Thing', { ignoreNulls: true });
+    const code = generatePojo(json, 'Thing', { includeMode: 'NON_NULL' });
     expect(code).toContain('@JsonInclude(JsonInclude.Include.NON_NULL)');
     expect(code).toContain('import com.fasterxml.jackson.annotation.JsonInclude;');
     expect(code).toContain('private Object optional;');
-    // no per-field @JsonIgnore
     expect(code).not.toContain('@JsonIgnore');
   });
 
-  it('adds @JsonInclude to nested classes when ignoreNulls is true', () => {
+  it('adds @JsonInclude(NON_EMPTY) at class level when includeMode is NON_EMPTY', () => {
+    const json = { id: 1, optional: null };
+    const code = generatePojo(json, 'Thing', { includeMode: 'NON_EMPTY' });
+    expect(code).toContain('@JsonInclude(JsonInclude.Include.NON_EMPTY)');
+    expect(code).toContain('import com.fasterxml.jackson.annotation.JsonInclude;');
+    expect(code).toContain('private Object optional;');
+  });
+
+  it('adds @JsonInclude to nested classes when includeMode is set', () => {
     const json = { id: 1, nested: { a: null, b: 2 } };
-    const code = generatePojo(json, 'Thing', { ignoreNulls: true });
+    const code = generatePojo(json, 'Thing', { includeMode: 'NON_NULL' });
     expect(code).toContain('@JsonInclude(JsonInclude.Include.NON_NULL)');
-    // nested class also gets it
     const nestedIdx = code.indexOf('public static class Nested');
     const before = code.slice(Math.max(0, nestedIdx - 200), nestedIdx);
     expect(before).toContain('@JsonInclude(JsonInclude.Include.NON_NULL)');
+  });
+
+  it('omits @JsonInclude when includeMode is not set', () => {
+    const json = { id: 1, optional: null };
+    const code = generatePojo(json, 'Thing');
+    expect(code).not.toContain('@JsonInclude');
+    expect(code).not.toContain('import com.fasterxml.jackson.annotation.JsonInclude;');
   });
 
   it('throws on invalid JSON', () => {

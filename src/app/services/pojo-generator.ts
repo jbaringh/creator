@@ -1,6 +1,8 @@
+export type NullIncludeMode = 'NON_NULL' | 'NON_EMPTY';
+
 export interface PojoOptions {
-  /** When true, add @JsonInclude(NON_NULL) at class level instead of per-field @JsonIgnore. */
-  ignoreNulls?: boolean;
+  /** When set, add @JsonInclude(mode) at class level. */
+  includeMode?: NullIncludeMode;
   /** When true (default), use Lombok annotations instead of hand-written getters/setters. */
   useLombok?: boolean;
 }
@@ -181,7 +183,7 @@ export function generatePojo(
   imports.add('com.fasterxml.jackson.annotation.JsonProperty');
   imports.add('com.fasterxml.jackson.annotation.JsonPropertyOrder');
 
-  if (options.ignoreNulls) {
+  if (options.includeMode) {
     imports.add('com.fasterxml.jackson.annotation.JsonInclude');
   }
 
@@ -203,10 +205,14 @@ export function generatePojo(
 
   const orderKey = fields.map((f) => `"${f.name}"`).join(', ');
 
+  const jsonIncludeLine = options.includeMode
+    ? `@JsonInclude(JsonInclude.Include.${options.includeMode})`
+    : null;
+
   const lines: string[] = [];
   lines.push(`@JsonPropertyOrder({${orderKey}})`);
-  if (options.ignoreNulls) {
-    lines.push('@JsonInclude(JsonInclude.Include.NON_NULL)');
+  if (jsonIncludeLine) {
+    lines.push(jsonIncludeLine);
   }
   if (useLombok) {
     lines.push('@Data');
@@ -223,8 +229,8 @@ export function generatePojo(
 
   for (const [nestedName, nestedFields] of nestedClasses) {
     lines.push(`    @JsonPropertyOrder({${nestedOrderKey(nestedFields)}})`);
-    if (options.ignoreNulls) {
-      lines.push('    @JsonInclude(JsonInclude.Include.NON_NULL)');
+    if (jsonIncludeLine) {
+      lines.push(`    ${jsonIncludeLine}`);
     }
     if (useLombok) {
       lines.push('    @Data');

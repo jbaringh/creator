@@ -20,16 +20,16 @@ import { generatePojo } from '../../services/pojo-generator';
                   (ngModelChange)="className.set($event)"
                   placeholder="ClassName"
                 />
-                <label class="form-check-label small mb-0" for="ignoreNulls">
-                  <input
-                    id="ignoreNulls"
-                    class="form-check-input"
-                    type="checkbox"
-                    [checked]="ignoreNulls()"
-                    (change)="ignoreNulls.set(!ignoreNulls())"
-                  />
-                  <code>@JsonInclude(NON_NULL)</code>
-                </label>
+                <select
+                  class="form-select form-select-sm"
+                  style="width: auto;"
+                  [ngModel]=\"includeMode()\"
+                  (ngModelChange)=\"includeMode.set($event)\"
+                >
+                  <option value=\"\">No @JsonInclude</option>
+                  <option value=\"NON_NULL\">@JsonInclude(NON_NULL)</option>
+                  <option value=\"NON_EMPTY\">@JsonInclude(NON_EMPTY)</option>
+                </select>
                 <label class="form-check-label small mb-0" for="useLombok">
                   <input
                     id="useLombok"
@@ -92,7 +92,7 @@ export class PojoConverter {
   protected readonly jsonInput = signal('');
   protected readonly generatedCode = signal('');
   protected readonly error = signal('');
-  protected readonly ignoreNulls = signal(false);
+  protected readonly includeMode = signal<'' | 'NON_NULL' | 'NON_EMPTY'>('');
   protected readonly useLombok = signal(true);
   protected readonly className = signal('MyClass');
 
@@ -100,7 +100,7 @@ export class PojoConverter {
     this.error.set('');
     try {
       const code = generatePojo(this.jsonInput(), this.className(), {
-        ignoreNulls: this.ignoreNulls(),
+        includeMode: this.includeMode() || undefined,
         useLombok: this.useLombok(),
       });
       this.generatedCode.set(code);
