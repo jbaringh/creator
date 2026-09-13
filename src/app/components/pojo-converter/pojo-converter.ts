@@ -41,6 +41,16 @@ import { CodeMirrorEditor, EditorLanguage } from '../code-editor/code-editor';
                   />
                   Lombok
                 </label>
+                <input
+                  id="jsonFileInput"
+                  type="file"
+                  accept=".json,application/json"
+                  class="d-none"
+                  (change)="onFileSelected($event)"
+                />
+                <button class="btn btn-outline-secondary btn-sm" (click)="importFile()">
+                  Import file
+                </button>
                 <button
                   class="btn btn-primary btn-sm"
                   (click)="generate()"
@@ -110,6 +120,25 @@ export class PojoConverter {
       this.error.set(e instanceof Error ? e.message : 'Unknown error');
       this.generatedCode.set('');
     }
+  }
+
+  importFile(): void {
+    const el = document.getElementById('jsonFileInput') as HTMLInputElement | null;
+    el?.click();
+  }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.jsonInput.set(String(reader.result ?? ''));
+    };
+    reader.onerror = () => this.error.set('Could not read the file');
+    reader.readAsText(file);
+    // Allow the same file to be re-selected.
+    input.value = '';
   }
 
   async copyCode(): Promise<void> {

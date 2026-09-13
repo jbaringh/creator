@@ -90,6 +90,16 @@ components:
                 >
                   Load sample
                 </button>
+                <input
+                  id="openapiFileInput"
+                  type="file"
+                  accept=".yaml,.yml,.json,application/json"
+                  class="d-none"
+                  (change)="onFileSelected($event)"
+                />
+                <button class="btn btn-outline-secondary btn-sm" (click)="importFile()">
+                  Import file
+                </button>
                 <button
                   class="btn btn-primary btn-sm"
                   (click)="generate()"
@@ -126,7 +136,7 @@ components:
               </button>
             </div>
             <div class="card-body d-flex">
-              <app-code-editor
+              <app-code-editor class="w-100"
                 [code]="generatedCode() || '// Click Generate to see the POJOs here'"
                 [language]="'java'"
                 [readOnly]="true"
@@ -149,6 +159,25 @@ export class OpenApiConverter {
 
   loadSample(): void {
     this.specInput.set(this.sample);
+  }
+
+  importFile(): void {
+    const el = document.getElementById('openapiFileInput') as HTMLInputElement | null;
+    el?.click();
+  }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.specInput.set(String(reader.result ?? ''));
+    };
+    reader.onerror = () => this.error.set('Could not read the file');
+    reader.readAsText(file);
+    // Allow the same file to be re-selected.
+    input.value = '';
   }
 
   generate(): void {
