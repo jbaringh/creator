@@ -14,18 +14,34 @@ function doc(paths: Record<string, unknown>) {
   };
 }
 
+function op(responses?: Record<string, unknown>, requestBody?: Record<string, unknown>, parameters?: unknown[]) {
+  const r: Record<string, unknown> = {};
+  if (parameters) r['parameters'] = parameters;
+  if (requestBody) r['requestBody'] = requestBody;
+  if (responses) r['responses'] = responses;
+  return r;
+}
+
+function jsonSchema(ref: string) {
+  return { 'application/json': { schema: { $ref: ref } } };
+}
+
 describe('generateControllerFromOpenApi', () => {
   it('throws when there are no paths', () => {
     expect(() => generateControllerFromOpenApi({ openapi: '3.0.0', paths: {} })).toThrow(/no operations/i);
   });
 
   it('throws when the document is not an object', () => {
-    expect(() => generateControllerFromOpenApi(null as unknown as object)).toThrow(/not an object/i);
+    expect(() => generateControllerFromOpenApi(null as unknown as object)).toThrow(/must be an object/i);
   });
 
   it('generates a GET endpoint with @GetMapping', () => {
     const code = generateControllerFromOpenApi(
-      doc({ '/pets': { get: { responses: { 200: { content: { 'application/json': { schema: { $ref: '#/components/schemas/Pet' } } } } } } } },
+      doc({
+        '/pets': {
+          get: op({ 200: { content: jsonSchema('#/components/schemas/Pet') } }),
+        },
+      }),
     );
     expect(code).toContain('@RestController');
     expect(code).toContain('@GetMapping("/pets")');
@@ -38,10 +54,10 @@ describe('generateControllerFromOpenApi', () => {
     const code = generateControllerFromOpenApi(
       doc({
         '/pets': {
-          post: {
-            requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/Pet' } } } },
-            responses: { 201: { content: { 'application/json': { schema: { $ref: '#/components/schemas/Pet' } } } } },
-          },
+          post: op(
+            { 201: { content: jsonSchema('#/components/schemas/Pet') } },
+            { content: jsonSchema('#/components/schemas/Pet') },
+          ),
         },
       }),
     );
@@ -53,7 +69,15 @@ describe('generateControllerFromOpenApi', () => {
 
   it('generates a DELETE returning Mono<Void> when no response schema', () => {
     const code = generateControllerFromOpenApi(
-      doc({ '/pets/{id}': { delete: { parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 204: {} } } } },
+      doc({
+        '/pets/{id}': {
+          delete: op(
+            { 204: {} },
+            undefined,
+            [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          ),
+        },
+      }),
     );
     expect(code).toContain('@DeleteMapping("/pets/{id}")');
     expect(code).toContain('@PathVariable("id") String id');
@@ -65,10 +89,11 @@ describe('generateControllerFromOpenApi', () => {
     const code = generateControllerFromOpenApi(
       doc({
         '/pets': {
-          get: {
-            parameters: [{ name: 'limit', in: 'query', schema: { type: 'integer' } }],
-            responses: { 200: { content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Pet' } } } } } },
-          },
+          get: op(
+            { 200: { content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Pet' } } } } } },
+            undefined,
+            [{ name: 'limit', in: 'query', schema: { type: 'integer' } }],
+          ),
         },
       }),
     );
@@ -77,11 +102,17 @@ describe('generateControllerFromOpenApi', () => {
     expect(code).toContain('import org.springframework.web.bind.annotation.RequestParam;');
   });
 
-  it('handles query params of $ref type using String fallback and multiple endpoints in one controller', () => {
+  it('handles multiple endpoints in one controller', () => {
     const code = generateControllerFromOpenApi(
       doc({
-        '/pets': { get: { responses: { 200: { content: { 'application/json': { schema: { $ref: '#/components/schemas/Pet' } } } } } } },
-        '/pets/{id}': { get: { parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { content: { 'application/json': { schema: { $ref: '#/components/schemas/Pet' } } } } } } },
+        '/pets': { get: op({ 200: { content: jsonSchema('#/components/schemas/Pet') } }) },
+        '/pets/{id}': {
+          get: op(
+            { 200: { content: jsonSchema('#/components/schemas/Pet') } },
+            undefined,
+            [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+          ),
+        },
       }),
     );
     expect(code).toContain('public Mono<Pet> getPets()');
@@ -90,18 +121,16 @@ describe('generateControllerFromOpenApi', () => {
 
   it('uses the info title to derive the controller class name', () => {
     const code = generateControllerFromOpenApi(
-      doc({ '/x': { get: { responses: { 200: {} } } } }),
+      doc({ '/x': { get: op({ 200: {} }) } }),
     );
-    // "Petstore" -> "Petstore" controller
     expect(code).toContain('public class Petstore');
   });
 
   it('disambiguates colliding method names with a numeric suffix', () => {
-    // Two different paths that both end in /items -> both would derive "getItems".
     const code = generateControllerFromOpenApi(
       doc({
-        '/orders/items': { get: { responses: { 200: {} } } },
-        '/invoices/items': { get: { responses: { 200: {} } } },
+        '/orders/items': { get: op({ 200: {} }) },
+        '/invoices/items': { get: op({ 200: {} }) },
       }),
     );
     const matches = code.match(/public Mono<Void> (getItems\d*)\(/g) || [];
