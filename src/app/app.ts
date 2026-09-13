@@ -17,6 +17,11 @@ import { RouterLink, RouterOutlet } from '@angular/router';
               WebFlux Controller
             </a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link" routerLink="openapi" routerLinkActive="active">
+              OpenAPI → POJO
+            </a>
+          </li>
         </ul>
       </div>
     </nav>

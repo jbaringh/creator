@@ -15,4 +15,12 @@ export const routes: Routes = [
       ),
     title: 'WebFlux Controller',
   },
+  {
+    path: 'openapi',
+    loadComponent: () =>
+      import('./components/openapi-converter/openapi-converter').then(
+        (m) => m.OpenApiConverter,
+      ),
+    title: 'OpenAPI to POJO',
+  },
 ];

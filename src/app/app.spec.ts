@@ -17,12 +17,16 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render the nav bar with both links', async () => {
+  it('should render the nav bar with all three links', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('.navbar')).toBeTruthy();
     const links = el.querySelectorAll('.nav-link');
-    expect(links.length).toBe(2);
+    expect(links.length).toBe(3);
+    const labels = Array.from(links).map((a) => (a as HTMLElement).textContent?.trim());
+    expect(labels).toContain('JSON → POJO');
+    expect(labels).toContain('WebFlux Controller');
+    expect(labels).toContain('OpenAPI → POJO');
   });
 });

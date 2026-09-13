@@ -6,9 +6,10 @@ import { EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { java } from '@codemirror/lang-java';
 import { json } from '@codemirror/lang-json';
+import { yaml } from '@codemirror/lang-yaml';
 import { oneDark } from '@codemirror/theme-one-dark';
 
-export type EditorLanguage = 'java' | 'json';
+export type EditorLanguage = 'java' | 'json' | 'yaml';
 
 @Component({
   selector: 'app-code-editor',
@@ -79,7 +80,8 @@ export class CodeMirrorEditor implements AfterViewInit, OnDestroy {
   }
 
   private buildExtensions(): Extension[] {
-    const lang = this.language === 'java' ? java() : json();
+    const lang =
+      this.language === 'java' ? java() : this.language === 'yaml' ? yaml() : json();
     return [
       oneDark,
       lang,
