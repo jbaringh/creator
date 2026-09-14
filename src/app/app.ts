@@ -18,8 +18,36 @@ import { RouterLink, RouterOutlet } from '@angular/router';
             </a>
           </li>
           <li class="nav-item">
+            <a
+              class="nav-link"
+              routerLink="controller-advice"
+              routerLinkActive="active"
+            >
+              Advice
+            </a>
+          </li>
+          <li class="nav-item">
+            <a
+              class="nav-link"
+              routerLink="exception"
+              routerLinkActive="active"
+            >
+              Exception
+            </a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link" routerLink="openapi" routerLinkActive="active">
               OpenAPI → POJO
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" routerLink="openapi-full" routerLinkActive="active">
+              OpenAPI → Full
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" routerLink="history" routerLinkActive="active">
+              History
             </a>
           </li>
         </ul>

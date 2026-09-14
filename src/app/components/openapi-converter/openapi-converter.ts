@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { generatePojoFromOpenApi } from '../../services/openapi-generator';
 import { NullIncludeMode } from '../../services/pojo-generator';
+import { GenerationHistoryService } from '../../services/generation-history.service';
 import { CodeMirrorEditor, EditorLanguage } from '../code-editor/code-editor';
 
 const SAMPLE_SPEC = `openapi: 3.0.0
@@ -157,6 +158,8 @@ export class OpenApiConverter {
   protected readonly useLombok = signal(true);
   protected readonly sample = SAMPLE_SPEC;
 
+  constructor(private readonly history: GenerationHistoryService) {}
+
   loadSample(): void {
     this.specInput.set(this.sample);
   }
@@ -188,6 +191,7 @@ export class OpenApiConverter {
         useLombok: this.useLombok(),
       });
       this.generatedCode.set(code);
+      this.history.add('openapi', this.specInput(), [{ label: 'Generated POJOs', code }]);
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : 'Unknown error');
       this.generatedCode.set('');

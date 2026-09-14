@@ -4,6 +4,7 @@ import {
   EndpointSpec, HttpMethod, ParamLocation,
   generateController,
 } from '../../services/controller-generator';
+import { GenerationHistoryService } from '../../services/generation-history.service';
 import { CodeMirrorEditor, EditorLanguage } from '../code-editor/code-editor';
 
 interface ParamRow {
@@ -43,7 +44,18 @@ const HTTP_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HE
                   (ngModelChange)="className.set($event)"
                   placeholder="ClassName"
                 />
+                <input
+                  class="form-control form-control-sm"
+                  style="width: 160px;"
+                  [ngModel]="basePath()"
+                  (ngModelChange)="basePath.set($event)"
+                  placeholder="/api/v1"
+                />
                 <button class="btn btn-primary btn-sm" (click)="addEndpoint()">+ Endpoint</button>
+                <div class="vr"></div>
+                <button class="btn btn-success btn-sm" (click)="generate()" [disabled]="endpoints().length === 0">
+                  Generate
+                </button>
               </div>
             </div>
             <div class="card-body">
@@ -139,9 +151,6 @@ const HTTP_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HE
               } @else {
                 <span class="text-muted small">Ready</span>
               }
-              <button class="btn btn-primary" (click)="generate()" [disabled]="endpoints().length === 0">
-                Generate
-              </button>
             </div>
           </div>
         </div>
@@ -153,7 +162,7 @@ const HTTP_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HE
               <button class="btn btn-outline-secondary btn-sm" (click)="copyCode()" [disabled]="!generatedCode()">Copy</button>
             </div>
             <div class="card-body d-flex">
-              <app-code-editor
+              <app-code-editor class="w-100"
                 [code]="generatedCode() || '// Click Generate to see the controller here'"
                 [language]="'java'"
                 [readOnly]="true"
@@ -168,12 +177,15 @@ const HTTP_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HE
 })
 export class ControllerGenerator {
   protected readonly className = signal('MyController');
+  protected readonly basePath = signal('');
   protected readonly error = signal('');
   protected readonly generatedCode = signal('');
   protected readonly httpMethods = HTTP_METHODS;
 
   private nextId = 0;
   protected readonly endpoints = signal<EndpointRow[]>([]);
+
+  constructor(private readonly history: GenerationHistoryService) {}
 
   private newEndpoint(): EndpointRow {
     this.nextId++;
@@ -226,12 +238,28 @@ export class ControllerGenerator {
   generate(): void {
     this.error.set('');
     try {
-      const code = generateController(this.toSpecs(), this.className() || 'MyController');
+      const code = generateController(this.toSpecs(), this.className() || 'MyController', this.basePath());
       this.generatedCode.set(code);
+      this.history.add('controller', this.describeInput(), [
+        { label: this.className() || 'MyController', code },
+      ]);
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : 'Unknown error');
       this.generatedCode.set('');
     }
+  }
+
+  private describeInput(): string {
+    const className = this.className() || 'MyController';
+    const lines = [`class ${className}`];
+    for (const ep of this.endpoints()) {
+      const params = ep.params
+        .filter((p) => p.name.trim() !== '')
+        .map((p) => `${p.location}:${p.name} (${p.type.trim() || 'String'})`);
+      const body = ep.hasBody ? ` body ${ep.bodyName} (${ep.bodyType.trim() || 'Object'})` : '';
+      lines.push(`${ep.method} ${ep.path || '/'}${params.length ? ` [${params.join(', ')}]` : ''}${body} -> ${ep.returnType.trim() || 'Void'}`);
+    }
+    return lines.join('\n');
   }
 
   async copyCode(): Promise<void> {

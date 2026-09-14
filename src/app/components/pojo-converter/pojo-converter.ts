@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { generatePojo } from '../../services/pojo-generator';
+import { GenerationHistoryService } from '../../services/generation-history.service';
 import { CodeMirrorEditor, EditorLanguage } from '../code-editor/code-editor';
 
 @Component({
@@ -108,6 +109,8 @@ export class PojoConverter {
   protected readonly useLombok = signal(true);
   protected readonly className = signal('MyClass');
 
+  constructor(private readonly history: GenerationHistoryService) {}
+
   generate(): void {
     this.error.set('');
     try {
@@ -116,6 +119,7 @@ export class PojoConverter {
         useLombok: this.useLombok(),
       });
       this.generatedCode.set(code);
+      this.history.add('pojo', this.jsonInput(), [{ label: this.className() || 'MyClass', code }]);
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : 'Unknown error');
       this.generatedCode.set('');

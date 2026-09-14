@@ -137,4 +137,22 @@ describe('generateController', () => {
     const bad = { method: 'FETCH' as any, path: '/x', params: [], requestBody: null, returnType: 'T' };
     expect(() => generateController([bad], 'C')).toThrow();
   });
+
+  it('emits a class-level @RequestMapping when basePath is set', () => {
+    const code = generateController([base], 'UserController', '/api/v1');
+    expect(code).toContain('@RestController');
+    expect(code).toContain('@RequestMapping("/api/v1")');
+    expect(code).toContain('@GetMapping("/users/{id}")');
+    expect(code).toContain('import org.springframework.web.bind.annotation.RequestMapping;');
+  });
+
+  it('strips a trailing slash from basePath', () => {
+    const code = generateController([base], 'UserController', '/api/v1/');
+    expect(code).toContain('@RequestMapping("/api/v1")');
+  });
+
+  it('omits @RequestMapping when basePath is empty', () => {
+    const code = generateController([base], 'UserController', '');
+    expect(code).not.toContain('@RequestMapping');
+  });
 });

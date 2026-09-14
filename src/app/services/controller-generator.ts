@@ -98,6 +98,7 @@ function defaultJavaValue(javaType: string): string {
 export function generateController(
   endpoints: EndpointSpec[],
   className: string,
+  basePath?: string,
 ): string {
   if (!endpoints.length) {
     throw new Error('At least one endpoint is required');
@@ -105,6 +106,11 @@ export function generateController(
 
   const imports = new Set<string>();
   imports.add('org.springframework.web.bind.annotation.RestController');
+
+  const normalizedBase = (basePath ?? '').trim().replace(/\/+$/, '');
+  if (normalizedBase) {
+    imports.add('org.springframework.web.bind.annotation.RequestMapping');
+  }
 
   for (const e of endpoints) {
     if (!METHOD_ANNOTATIONS[e.method]) {
@@ -141,6 +147,9 @@ export function generateController(
 
   const lines: string[] = [];
   lines.push('@RestController');
+  if (normalizedBase) {
+    lines.push(`@RequestMapping("${normalizedBase}")`);
+  }
   lines.push(`public class ${className} {`);
   lines.push('');
 

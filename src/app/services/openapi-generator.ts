@@ -271,10 +271,16 @@ function renderClass(c: ClassDef, options: OpenApiOptions, indent: string, neste
   return lines;
 }
 
-export function generatePojoFromOpenApi(
+export interface GeneratedOpenApiClass {
+  name: string;
+  imports: string[];
+  body: string;
+}
+
+export function generatePojoClassesFromOpenApi(
   input: string,
   options: OpenApiOptions = {},
-): string {
+): GeneratedOpenApiClass[] {
   let doc: unknown;
   try {
     doc = yamlLoad(input);
@@ -297,12 +303,27 @@ export function generatePojoFromOpenApi(
 
   if (classes.length === 0) throw new Error('No valid schemas to generate');
 
-  const imports = collectImports(classes, options);
+  return classes.map((c) => ({
+    name: c.name,
+    imports: [...collectImports([c], options)].sort(),
+    body: renderClass(c, options, '', false).join('\n'),
+  }));
+}
+
+export function generatePojoFromOpenApi(
+  input: string,
+  options: OpenApiOptions = {},
+): string {
+  const generated = generatePojoClassesFromOpenApi(input, options);
+  const imports = new Set<string>();
+  for (const c of generated) {
+    for (const i of c.imports) imports.add(i);
+  }
   const importLines = [...imports].sort().map((i) => `import ${i};`).join('\n');
 
   const parts: string[] = [importLines, ''];
-  for (const c of classes) {
-    parts.push(...renderClass(c, options, '', false));
+  for (const c of generated) {
+    parts.push(c.body);
     parts.push('');
   }
   // Trim trailing blank line

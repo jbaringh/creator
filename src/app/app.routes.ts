@@ -23,4 +23,36 @@ export const routes: Routes = [
       ),
     title: 'OpenAPI to POJO',
   },
+  {
+    path: 'openapi-full',
+    loadComponent: () =>
+      import('./components/openapi-full-converter/openapi-full-converter').then(
+        (m) => m.OpenApiFullConverter,
+      ),
+    title: 'OpenAPI to Models & Controller',
+  },
+  {
+    path: 'history',
+    loadComponent: () =>
+      import('./components/generations-history/generations-history').then(
+        (m) => m.GenerationsHistory,
+      ),
+    title: 'Generation History',
+  },
+  {
+    path: 'controller-advice',
+    loadComponent: () =>
+      import('./components/controller-advice-generator/controller-advice-generator').then(
+        (m) => m.ControllerAdviceGenerator,
+      ),
+    title: 'ControllerAdvice Stubs',
+  },
+  {
+    path: 'exception',
+    loadComponent: () =>
+      import('./components/exception-generator/exception-generator').then(
+        (m) => m.ExceptionGenerator,
+      ),
+    title: 'Custom Exception',
+  },
 ];
